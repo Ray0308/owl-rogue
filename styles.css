@@ -52,6 +52,143 @@ button {
   gap: 8px;
 }
 
+.title-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(20, 24, 19, 0.9), rgba(24, 23, 18, 0.96)),
+    repeating-linear-gradient(0deg, transparent 0 38px, rgba(255, 246, 220, 0.035) 39px 40px),
+    #20251e;
+}
+
+.title-screen[hidden] {
+  display: none;
+}
+
+.title-screen__content {
+  width: min(100%, 340px);
+  text-align: center;
+}
+
+.title-screen__eyebrow {
+  margin: 0 0 8px;
+  color: var(--sky);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.title-screen h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(38px, 12vw, 58px);
+  line-height: 1.04;
+  letter-spacing: 0;
+  text-shadow: 0 4px 0 #171611, 0 8px 22px rgba(0, 0, 0, 0.5);
+}
+
+.title-screen__hero {
+  position: relative;
+  width: 168px;
+  height: 168px;
+  margin: 20px auto 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(243, 198, 75, 0.38);
+  border-radius: 50%;
+  background: rgba(243, 198, 75, 0.08);
+  box-shadow: 0 18px 35px rgba(0, 0, 0, 0.36);
+  animation: title-float 2.6s ease-in-out infinite;
+}
+
+.title-screen__hero img {
+  width: 132px;
+  height: 132px;
+  object-fit: cover;
+  image-rendering: pixelated;
+  mix-blend-mode: screen;
+}
+
+.title-screen__spark {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--gold);
+  transform: rotate(45deg);
+  animation: title-spark 1.8s ease-in-out infinite;
+}
+
+.spark-one {
+  top: 18px;
+  right: 10px;
+}
+
+.spark-two {
+  bottom: 24px;
+  left: 4px;
+  animation-delay: 0.7s;
+}
+
+.title-screen__subtitle {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.title-screen button {
+  width: min(100%, 280px);
+  min-height: 52px;
+  border: 1px solid #ffe48a;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f3c64b, #b98431);
+  color: #171611;
+  font-weight: 900;
+  box-shadow: 0 7px 0 #6d4b20, 0 14px 30px rgba(0, 0, 0, 0.35);
+}
+
+.title-screen button:active {
+  transform: translateY(4px);
+  box-shadow: 0 3px 0 #6d4b20, 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.version-label {
+  position: absolute;
+  right: max(6px, env(safe-area-inset-right));
+  bottom: max(4px, env(safe-area-inset-bottom));
+  z-index: 30;
+  color: rgba(255, 246, 220, 0.52);
+  font-size: 10px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+@keyframes title-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes title-spark {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: rotate(45deg) scale(0.75);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(45deg) scale(1.15);
+  }
+}
+
 .game-over {
   position: absolute;
   inset: 0;

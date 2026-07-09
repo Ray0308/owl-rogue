@@ -19,6 +19,8 @@ const gameOverRetry = document.querySelector("#gameOverRetry");
 const muteButton = document.querySelector("#muteButton");
 const volumeSlider = document.querySelector("#volumeSlider");
 const audioControls = document.querySelector(".audio-controls");
+const titlePanel = document.querySelector("#titlePanel");
+const startButton = document.querySelector("#startButton");
 
 const W = 9;
 const H = 12;
@@ -54,6 +56,7 @@ const gearDrops = [
 let state;
 let lastFrame = performance.now();
 let frameHandle = 0;
+let gameStarted = false;
 
 const audio = {
   context: null,
@@ -302,7 +305,7 @@ function isBlocked(x, y, ignoreEnemy = false) {
 
 function playerAction(dirName) {
   unlockAudio();
-  if (state.ended || state.busyUntil > performance.now()) return;
+  if (!gameStarted || state.ended || state.busyUntil > performance.now()) return;
   const dir = DIRS[dirName];
   state.player.face = dir.face;
   const nx = state.player.x + dir.x;
@@ -340,7 +343,7 @@ function playerAction(dirName) {
 
 function waitTurn() {
   unlockAudio();
-  if (state.ended || state.busyUntil > performance.now()) return;
+  if (!gameStarted || state.ended || state.busyUntil > performance.now()) return;
   state.player.hp = Math.min(playerMaxHp(), state.player.hp + 1);
   addLog("息を整えた。");
   addEffect("ring", state.player.x, state.player.y, "#75a8d8");
@@ -350,7 +353,7 @@ function waitTurn() {
 
 function useSkill() {
   unlockAudio();
-  if (state.ended || state.busyUntil > performance.now()) return;
+  if (!gameStarted || state.ended || state.busyUntil > performance.now()) return;
   if (state.skillCooldown > 0) {
     addLog("羽根斬りはまだ使えない。");
     updateUi();
@@ -380,7 +383,7 @@ function useSkill() {
 
 function usePotion() {
   unlockAudio();
-  if (state.ended || state.busyUntil > performance.now()) return;
+  if (!gameStarted || state.ended || state.busyUntil > performance.now()) return;
   if (state.potions <= 0) {
     addLog("薬草がない。");
     updateUi();
@@ -869,6 +872,12 @@ gameOverRetry.addEventListener("click", () => {
 });
 skillButton.addEventListener("click", useSkill);
 potionButton.addEventListener("click", usePotion);
+startButton.addEventListener("click", () => {
+  unlockAudio();
+  gameStarted = true;
+  titlePanel.hidden = true;
+  playSfx("stairs");
+});
 muteButton.addEventListener("click", () => {
   unlockAudio();
   audio.muted = !audio.muted;

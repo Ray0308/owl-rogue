@@ -70,6 +70,20 @@
 
       <ol id="logList" class="log" aria-label="ログ"></ol>
 
+      <section id="titlePanel" class="title-screen" aria-labelledby="titleHeading">
+        <div class="title-screen__content">
+          <p class="title-screen__eyebrow">TURN-BASED DUNGEON</p>
+          <h2 id="titleHeading">もふ梟の<br />迷宮狩り</h2>
+          <div class="title-screen__hero">
+            <span class="title-screen__spark spark-one"></span>
+            <img src="./assets/hero/front.jpg" alt="もふ梟" />
+            <span class="title-screen__spark spark-two"></span>
+          </div>
+          <p class="title-screen__subtitle">小さな羽根で、迷宮の奥へ。</p>
+          <button id="startButton" type="button">冒険をはじめる</button>
+        </div>
+      </section>
+
       <section id="gameOverPanel" class="game-over" aria-live="polite" hidden>
         <div class="game-over__panel">
           <h2>探索失敗</h2>
@@ -91,6 +105,8 @@
           <button id="gameOverRetry" type="button">もう一度潜る</button>
         </div>
       </section>
+
+      <span class="version-label" aria-label="バージョン 0.2.0">v0.2.0</span>
     </main>
 
     <script src="./game.js"></script>
