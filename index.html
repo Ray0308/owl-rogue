@@ -80,7 +80,35 @@
             <span class="title-screen__spark spark-two"></span>
           </div>
           <p class="title-screen__subtitle">小さな羽根で、迷宮の奥へ。</p>
-          <button id="startButton" type="button">冒険をはじめる</button>
+          <div class="title-screen__actions">
+            <button id="startButton" type="button">冒険をはじめる</button>
+            <button id="recordsButton" class="title-screen__secondary" type="button">戦績・図鑑</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="upgradePanel" class="modal-screen upgrade-screen" aria-labelledby="upgradeHeading" hidden>
+        <div class="modal-panel">
+          <p class="modal-kicker">LEVEL UP</p>
+          <h2 id="upgradeHeading">ひとつ選ぶ</h2>
+          <div id="upgradeChoices" class="upgrade-choices"></div>
+        </div>
+      </section>
+
+      <section id="recordsPanel" class="modal-screen records-screen" aria-labelledby="recordsHeading" hidden>
+        <div class="modal-panel records-panel">
+          <header>
+            <div>
+              <p class="modal-kicker">ADVENTURE LOG</p>
+              <h2 id="recordsHeading">戦績・図鑑</h2>
+            </div>
+            <button id="recordsCloseButton" class="modal-close" type="button" aria-label="閉じる">×</button>
+          </header>
+          <div id="recordsSummary" class="records-summary"></div>
+          <h3>魔物図鑑</h3>
+          <div id="enemyBook" class="book-grid"></div>
+          <h3>装備図鑑</h3>
+          <div id="gearBook" class="gear-book"></div>
         </div>
       </section>
 
@@ -106,7 +134,7 @@
         </div>
       </section>
 
-      <span class="version-label" aria-label="バージョン 0.2.0">v0.2.0</span>
+      <span class="version-label" aria-label="バージョン 0.3.0">v0.3.0</span>
     </main>
 
     <script src="./game.js"></script>

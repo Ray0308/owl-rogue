@@ -21,6 +21,14 @@ const volumeSlider = document.querySelector("#volumeSlider");
 const audioControls = document.querySelector(".audio-controls");
 const titlePanel = document.querySelector("#titlePanel");
 const startButton = document.querySelector("#startButton");
+const recordsButton = document.querySelector("#recordsButton");
+const recordsPanel = document.querySelector("#recordsPanel");
+const recordsCloseButton = document.querySelector("#recordsCloseButton");
+const recordsSummary = document.querySelector("#recordsSummary");
+const enemyBook = document.querySelector("#enemyBook");
+const gearBook = document.querySelector("#gearBook");
+const upgradePanel = document.querySelector("#upgradePanel");
+const upgradeChoices = document.querySelector("#upgradeChoices");
 
 const W = 9;
 const H = 12;
@@ -38,25 +46,62 @@ for (const name of ["front", "back", "left", "right"]) {
   heroSprites[name].src = `./assets/hero/${name}.jpg`;
 }
 
+const enemySprites = {};
+for (const name of ["sprout", "dart", "shell", "thorn", "boss"]) {
+  enemySprites[name] = new Image();
+  enemySprites[name].src = `./assets/enemies/${name}.png`;
+}
+
 const enemyTypes = {
-  sprout: { label: "草むらスライム", hp: 4, damage: 2, speed: 1, exp: 2, color: "#67b06b", mark: "S" },
-  dart: { label: "早足カラス", hp: 3, damage: 1, speed: 2, exp: 3, color: "#75a8d8", mark: "F" },
-  shell: { label: "石殻ムシ", hp: 8, damage: 3, speed: 0.5, exp: 4, color: "#c65b7c", mark: "H" },
-  thorn: { label: "トゲの花", hp: 5, damage: 4, speed: 0.75, exp: 5, color: "#b0c85f", mark: "T" },
-  boss: { label: "迷宮の番鳥", hp: 20, damage: 5, speed: 1, exp: 12, color: "#d8904b", mark: "B" },
+  sprout: { label: "草むらスライム", hp: 4, damage: 2, speed: 1, exp: 2, color: "#67b06b" },
+  dart: { label: "早足カラス", hp: 3, damage: 1, speed: 2, exp: 3, color: "#75a8d8" },
+  shell: { label: "石殻ムシ", hp: 8, damage: 3, speed: 0.5, exp: 4, color: "#c65b7c" },
+  thorn: { label: "トゲの花", hp: 5, damage: 4, speed: 0.75, exp: 5, color: "#b0c85f" },
+  boss: { label: "迷宮の番鳥", hp: 20, damage: 5, speed: 1, exp: 12, color: "#d8904b" },
 };
 
 const gearDrops = [
-  { name: "疾風の羽", attack: 1, maxHp: 0, color: "#75a8d8" },
-  { name: "木守りの鈴", attack: 0, maxHp: 4, color: "#67b06b" },
-  { name: "星くずの爪", attack: 2, maxHp: 0, color: "#f3c64b" },
-  { name: "ふかふか外套", attack: 0, maxHp: 6, color: "#c65b7c" },
+  { name: "疾風の羽", attack: 1, maxHp: 0, color: "#75a8d8", effect: "haste", effectText: "敵の行動速度を少し落とす" },
+  { name: "木守りの鈴", attack: 0, maxHp: 4, color: "#67b06b", effect: "thorns", effectText: "被弾時に1ダメージを返す" },
+  { name: "星くずの爪", attack: 2, maxHp: 0, color: "#f3c64b", effect: "critical", effectText: "20%で会心の一撃" },
+  { name: "ふかふか外套", attack: 0, maxHp: 6, color: "#c65b7c", effect: "regen", effectText: "4ターンごとにHPを1回復" },
+];
+
+const upgradePool = [
+  { id: "power", name: "猛禽の爪", description: "基礎攻撃力が2上がる", apply: () => { state.player.baseAttack += 2; } },
+  { id: "vitality", name: "ふくらむ羽毛", description: "最大HPが6上がり、HPを6回復", apply: () => { state.player.maxHp += 6; state.player.hp = Math.min(playerMaxHp(), state.player.hp + 6); } },
+  { id: "feather", name: "研ぎ澄ます羽", description: "羽根斬りの威力が2上がり、再使用が早まる", apply: () => { state.bonuses.skillPower += 2; state.bonuses.skillCooldown = Math.min(2, state.bonuses.skillCooldown + 1); } },
+  { id: "vampire", name: "夜狩りの息吹", description: "敵を倒すたびHPを2回復", apply: () => { state.bonuses.killHeal += 2; } },
+  { id: "evasion", name: "月影の身かわし", description: "敵の攻撃を15%で回避", apply: () => { state.bonuses.evasion = Math.min(0.45, state.bonuses.evasion + 0.15); } },
+  { id: "focus", name: "狩人の集中", description: "会心率が15%上がる", apply: () => { state.bonuses.critical += 0.15; } },
 ];
 
 let state;
 let lastFrame = performance.now();
 let frameHandle = 0;
 let gameStarted = false;
+
+const defaultMeta = {
+  runs: 0,
+  bestFloor: 1,
+  totalDefeats: 0,
+  enemiesSeen: {},
+  enemiesDefeated: {},
+  gearFound: [],
+};
+let meta = loadMeta();
+
+function loadMeta() {
+  try {
+    return { ...defaultMeta, ...JSON.parse(localStorage.getItem("owlRogueMeta") || "{}") };
+  } catch {
+    return { ...defaultMeta };
+  }
+}
+
+function saveMeta() {
+  localStorage.setItem("owlRogueMeta", JSON.stringify(meta));
+}
 
 const audio = {
   context: null,
@@ -180,6 +225,7 @@ function newGame() {
     floor: 1,
     turn: 0,
     ended: false,
+    runRecorded: false,
     busyUntil: 0,
     shake: 0,
     player: makeActor({ x: 4, y: 10, hp: 18, maxHp: 18, baseAttack: 3, face: "front", level: 1, exp: 0 }),
@@ -189,12 +235,16 @@ function newGame() {
     loot: [],
     gear: [],
     effects: [],
+    bonuses: { skillPower: 0, skillCooldown: 0, killHeal: 0, evasion: 0, critical: 0 },
+    choosingUpgrade: false,
+    pendingEnemyTurn: false,
     skillCooldown: 0,
     potions: 1,
     stairs: null,
     log: ["小さな迷宮へ入った。"],
   };
   gameOverPanel.hidden = true;
+  upgradePanel.hidden = true;
   buildFloor();
   updateUi();
 }
@@ -216,6 +266,8 @@ function makeActor(data) {
 function makeEnemy(type, x, y) {
   const base = enemyTypes[type];
   const bonus = Math.floor(state.floor / 2);
+  meta.enemiesSeen[type] = true;
+  saveMeta();
   return makeActor({
     id: crypto.randomUUID ? crypto.randomUUID() : `${type}-${x}-${y}-${Math.random()}`,
     type,
@@ -225,6 +277,9 @@ function makeEnemy(type, x, y) {
     maxHp: base.hp + bonus * 2,
     damage: base.damage + Math.floor(state.floor / 3),
     energy: 0,
+    specialCooldown: type === "boss" ? 2 : 0,
+    intent: null,
+    summoned: false,
   });
 }
 
@@ -297,6 +352,16 @@ function playerMaxHp() {
   return state.player.maxHp + state.gear.reduce((sum, item) => sum + item.maxHp, 0);
 }
 
+function hasGearEffect(effect) {
+  return state.gear.some((item) => item.effect === effect);
+}
+
+function rollPlayerDamage(baseDamage) {
+  const criticalChance = state.bonuses.critical + (hasGearEffect("critical") ? 0.2 : 0);
+  const critical = Math.random() < criticalChance;
+  return { damage: critical ? Math.ceil(baseDamage * 1.75) : baseDamage, critical };
+}
+
 function isBlocked(x, y, ignoreEnemy = false) {
   if (!inBounds(x, y) || state.walls.has(keyAt(x, y))) return true;
   if (state.player.x === x && state.player.y === y) return true;
@@ -305,7 +370,7 @@ function isBlocked(x, y, ignoreEnemy = false) {
 
 function playerAction(dirName) {
   unlockAudio();
-  if (!gameStarted || state.ended || state.busyUntil > performance.now()) return;
+  if (!gameStarted || state.ended || state.choosingUpgrade || !recordsPanel.hidden || state.busyUntil > performance.now()) return;
   const dir = DIRS[dirName];
   state.player.face = dir.face;
   const nx = state.player.x + dir.x;
@@ -315,7 +380,8 @@ function playerAction(dirName) {
   if (target) {
     playSfx("attack");
     bumpActor(state.player, dir.x, dir.y, 170);
-    hitEnemy(target, playerAttack(), dir.x, dir.y);
+    const hit = rollPlayerDamage(playerAttack());
+    hitEnemy(target, hit.damage, dir.x, dir.y, hit.critical);
     lockInput(210);
     endTurn();
     return;
@@ -343,7 +409,7 @@ function playerAction(dirName) {
 
 function waitTurn() {
   unlockAudio();
-  if (!gameStarted || state.ended || state.busyUntil > performance.now()) return;
+  if (!gameStarted || state.ended || state.choosingUpgrade || !recordsPanel.hidden || state.busyUntil > performance.now()) return;
   state.player.hp = Math.min(playerMaxHp(), state.player.hp + 1);
   addLog("息を整えた。");
   addEffect("ring", state.player.x, state.player.y, "#75a8d8");
@@ -353,7 +419,7 @@ function waitTurn() {
 
 function useSkill() {
   unlockAudio();
-  if (!gameStarted || state.ended || state.busyUntil > performance.now()) return;
+  if (!gameStarted || state.ended || state.choosingUpgrade || !recordsPanel.hidden || state.busyUntil > performance.now()) return;
   if (state.skillCooldown > 0) {
     addLog("羽根斬りはまだ使えない。");
     updateUi();
@@ -368,8 +434,9 @@ function useSkill() {
     addEffect("slash", x, y, "#75a8d8");
     const enemy = enemyAt(x, y);
     if (enemy) {
-      hitEnemy(enemy, playerAttack() + 2, dir.x, dir.y);
-      state.skillCooldown = 5;
+      const hit = rollPlayerDamage(playerAttack() + 2 + state.bonuses.skillPower);
+      hitEnemy(enemy, hit.damage, dir.x, dir.y, hit.critical);
+      state.skillCooldown = Math.max(2, 5 - state.bonuses.skillCooldown);
       lockInput(250);
       endTurn();
       return;
@@ -383,7 +450,7 @@ function useSkill() {
 
 function usePotion() {
   unlockAudio();
-  if (!gameStarted || state.ended || state.busyUntil > performance.now()) return;
+  if (!gameStarted || state.ended || state.choosingUpgrade || !recordsPanel.hidden || state.busyUntil > performance.now()) return;
   if (state.potions <= 0) {
     addLog("薬草がない。");
     updateUi();
@@ -415,19 +482,26 @@ function lockInput(ms) {
   state.busyUntil = Math.max(state.busyUntil, performance.now() + ms);
 }
 
-function hitEnemy(enemy, damage, dx = 0, dy = 0) {
+function hitEnemy(enemy, damage, dx = 0, dy = 0, critical = false) {
   enemy.hp -= damage;
   enemy.hitFlash = 220;
   enemy.pop = 1.2;
   state.shake = Math.max(state.shake, 5);
   addEffect("slash", enemy.x, enemy.y, "#fff6dc");
-  addEffect("text", enemy.x, enemy.y, "#ef6b57", `-${damage}`);
+  addEffect("text", enemy.x, enemy.y, critical ? "#f3c64b" : "#ef6b57", critical ? `会心 ${damage}` : `-${damage}`);
   const name = enemyTypes[enemy.type].label;
 
   if (enemy.hp <= 0) {
     playSfx("defeat");
     addLog(`${name}を倒した。`);
+    meta.totalDefeats += 1;
+    meta.enemiesDefeated[enemy.type] = (meta.enemiesDefeated[enemy.type] || 0) + 1;
+    saveMeta();
     gainExp(enemyTypes[enemy.type].exp + Math.floor(state.floor / 2));
+    if (state.bonuses.killHeal > 0) {
+      state.player.hp = Math.min(playerMaxHp(), state.player.hp + state.bonuses.killHeal);
+      addEffect("text", state.player.x, state.player.y, "#67b06b", `+${state.bonuses.killHeal}`);
+    }
     maybeDrop(enemy.x, enemy.y);
     state.enemies = state.enemies.filter((next) => next.id !== enemy.id);
     addEffect("burst", enemy.x, enemy.y, "#f3c64b");
@@ -444,13 +518,45 @@ function gainExp(amount) {
   if (state.player.exp >= need) {
     state.player.exp -= need;
     state.player.level += 1;
-    state.player.maxHp += 3;
-    state.player.baseAttack += state.player.level % 2 === 0 ? 1 : 0;
-    state.player.hp = playerMaxHp();
+    state.player.maxHp += 2;
+    state.player.hp = Math.min(playerMaxHp(), state.player.hp + 4);
     addEffect("burst", state.player.x, state.player.y, "#75a8d8");
     addLog(`レベル${state.player.level}になった。`);
     playSfx("level");
+    showUpgradeChoices();
   }
+}
+
+function showUpgradeChoices() {
+  state.choosingUpgrade = true;
+  const choices = [...upgradePool].sort(() => Math.random() - 0.5).slice(0, 3);
+  upgradeChoices.replaceChildren();
+  for (const choice of choices) {
+    const button = document.createElement("button");
+    button.className = "upgrade-choice";
+    button.type = "button";
+    const name = document.createElement("strong");
+    name.textContent = choice.name;
+    const description = document.createElement("span");
+    description.textContent = choice.description;
+    button.append(name, description);
+    button.addEventListener("click", () => chooseUpgrade(choice));
+    upgradeChoices.append(button);
+  }
+  upgradePanel.hidden = false;
+}
+
+function chooseUpgrade(choice) {
+  choice.apply();
+  state.choosingUpgrade = false;
+  upgradePanel.hidden = true;
+  addLog(`${choice.name}を身につけた。`);
+  playSfx("pickup");
+  if (state.pendingEnemyTurn) {
+    state.pendingEnemyTurn = false;
+    runEnemies();
+  }
+  updateUi();
 }
 
 function expToNext() {
@@ -480,6 +586,8 @@ function dropGear(x, y) {
     name: `${rank}${base.name}`,
     attack: base.attack + bonus,
     maxHp: base.maxHp + bonus * 2,
+    effect: base.effect,
+    effectText: base.effectText,
     color: base.color,
     born: performance.now(),
   });
@@ -518,7 +626,11 @@ function equipGear(item) {
   state.gear = state.gear.slice(0, 3);
   state.player.hp = Math.min(playerMaxHp(), state.player.hp + Math.max(1, item.maxHp));
   state.loot.push(item.name);
-  addLog(`${item.name}を装備した。`);
+  if (!meta.gearFound.includes(item.name.replace(/^(上質な|磨かれた|古い)/, ""))) {
+    meta.gearFound.push(item.name.replace(/^(上質な|磨かれた|古い)/, ""));
+    saveMeta();
+  }
+  addLog(`${item.name}を装備。${item.effectText}`);
 }
 
 function spawnStairs() {
@@ -543,19 +655,65 @@ function checkStairs() {
 function endTurn() {
   state.turn += 1;
   state.skillCooldown = Math.max(0, state.skillCooldown - 1);
+  if (hasGearEffect("regen") && state.turn % 4 === 0) {
+    state.player.hp = Math.min(playerMaxHp(), state.player.hp + 1);
+    addEffect("text", state.player.x, state.player.y, "#67b06b", "+1");
+  }
+  if (state.choosingUpgrade) {
+    state.pendingEnemyTurn = true;
+    updateUi();
+    return;
+  }
   runEnemies();
   updateUi();
 }
 
 function runEnemies() {
   for (const enemy of [...state.enemies]) {
-    if (state.ended) break;
+    if (state.ended || state.choosingUpgrade) break;
     const base = enemyTypes[enemy.type];
-    enemy.energy += base.speed;
-    while (enemy.energy >= 1 && !state.ended && state.enemies.includes(enemy)) {
+    enemy.energy += Math.max(0.25, base.speed - (hasGearEffect("haste") ? 0.2 : 0));
+    while (enemy.energy >= 1 && !state.ended && !state.choosingUpgrade && state.enemies.includes(enemy)) {
       enemy.energy -= 1;
       enemyAct(enemy);
     }
+  }
+}
+
+function bossIntentTiles(centerX, centerY) {
+  const tiles = [];
+  for (let y = centerY - 1; y <= centerY + 1; y += 1) {
+    for (let x = centerX - 1; x <= centerX + 1; x += 1) {
+      if (inBounds(x, y)) tiles.push({ x, y });
+    }
+  }
+  return tiles;
+}
+
+function damagePlayer(enemy, damage, label, color) {
+  if (Math.random() < state.bonuses.evasion) {
+    addEffect("text", state.player.x, state.player.y, "#75a8d8", "回避");
+    addLog(`${label}をかわした。`);
+    return;
+  }
+  playSfx("hurt");
+  state.player.hp -= damage;
+  state.player.hitFlash = 260;
+  state.shake = Math.max(state.shake, 4);
+  addEffect("slash", state.player.x, state.player.y, color);
+  addEffect("text", state.player.x, state.player.y, "#ef6b57", `-${damage}`);
+  addLog(`${label}。`);
+  if (hasGearEffect("thorns") && enemy && state.enemies.includes(enemy)) {
+    hitEnemy(enemy, 1);
+    addEffect("text", enemy.x, enemy.y, "#67b06b", "反射");
+  }
+  if (state.player.hp <= 0) {
+    state.player.hp = 0;
+    state.ended = true;
+    addLog("力尽きた。");
+    statusText.textContent = "探索失敗";
+    playSfx("gameover");
+    showGameOver();
   }
 }
 
@@ -565,23 +723,37 @@ function enemyAct(enemy) {
   const distance = Math.abs(dx) + Math.abs(dy);
   const base = enemyTypes[enemy.type];
 
-  if (distance === 1) {
-    playSfx("hurt");
-    state.player.hp -= enemy.damage;
-    state.player.hitFlash = 260;
-    state.shake = Math.max(state.shake, 4);
-    bumpActor(enemy, Math.sign(dx), Math.sign(dy), 130);
-    addEffect("slash", state.player.x, state.player.y, base.color);
-    addEffect("text", state.player.x, state.player.y, "#ef6b57", `-${enemy.damage}`);
-    addLog(`${base.label}の攻撃。`);
-    if (state.player.hp <= 0) {
-      state.player.hp = 0;
-      state.ended = true;
-      addLog("力尽きた。");
-      statusText.textContent = "探索失敗";
-      playSfx("gameover");
-      showGameOver();
+  if (enemy.type === "boss") {
+    if (!enemy.summoned && enemy.hp <= enemy.maxHp / 2) {
+      enemy.summoned = true;
+      for (let i = 0; i < 2; i += 1) {
+        const pos = openRandomCell(Math.max(0, enemy.y - 2), Math.min(H - 1, enemy.y + 2));
+        if (pos) state.enemies.push(makeEnemy("sprout", pos.x, pos.y));
+      }
+      addEffect("burst", enemy.x, enemy.y, "#d8904b");
+      addLog("番鳥が眷属を呼び寄せた。");
+      return;
     }
+    if (enemy.intent) {
+      const hit = enemy.intent.tiles.some((tile) => tile.x === state.player.x && tile.y === state.player.y);
+      if (hit) damagePlayer(enemy, enemy.damage + 2, "番鳥の星落とし", "#d8904b");
+      else addLog("番鳥の星落としを避けた。");
+      enemy.intent = null;
+      return;
+    }
+    enemy.specialCooldown -= 1;
+    if (enemy.specialCooldown <= 0) {
+      enemy.intent = { type: "blast", tiles: bossIntentTiles(state.player.x, state.player.y) };
+      enemy.specialCooldown = 3;
+      addLog("番鳥が星落としを構えた。赤い床から離れろ！");
+      playSfx("skill");
+      return;
+    }
+  }
+
+  if (distance === 1) {
+    bumpActor(enemy, Math.sign(dx), Math.sign(dy), 130);
+    damagePlayer(enemy, enemy.damage, `${base.label}の攻撃`, base.color);
     return;
   }
 
@@ -620,10 +792,56 @@ function updateUi() {
 }
 
 function showGameOver() {
+  if (!state.runRecorded) {
+    state.runRecorded = true;
+    meta.runs += 1;
+    meta.bestFloor = Math.max(meta.bestFloor, state.floor);
+    saveMeta();
+  }
   gameOverFloor.textContent = `第${state.floor}層`;
   gameOverLoot.textContent = state.loot.length;
   gameOverLevel.textContent = state.player.level;
   gameOverPanel.hidden = false;
+}
+
+function renderRecords() {
+  recordsSummary.replaceChildren();
+  const stats = [
+    ["冒険回数", meta.runs],
+    ["最高到達", `第${meta.bestFloor}層`],
+    ["討伐数", meta.totalDefeats],
+  ];
+  for (const [label, value] of stats) {
+    const box = document.createElement("div");
+    const caption = document.createElement("span");
+    const number = document.createElement("strong");
+    caption.textContent = label;
+    number.textContent = value;
+    box.append(caption, number);
+    recordsSummary.append(box);
+  }
+
+  enemyBook.replaceChildren();
+  for (const [type, data] of Object.entries(enemyTypes)) {
+    const known = Boolean(meta.enemiesSeen[type]);
+    const entry = document.createElement("div");
+    entry.className = `book-entry${known ? "" : " is-unknown"}`;
+    const image = document.createElement("img");
+    image.src = `./assets/enemies/${type}.png`;
+    image.alt = known ? data.label : "未発見";
+    const name = document.createElement("span");
+    name.textContent = known ? `${data.label} ×${meta.enemiesDefeated[type] || 0}` : "？？？";
+    entry.append(image, name);
+    enemyBook.append(entry);
+  }
+
+  gearBook.replaceChildren();
+  for (const gear of gearDrops) {
+    const known = meta.gearFound.includes(gear.name);
+    const item = document.createElement("span");
+    item.textContent = known ? `${gear.name}：${gear.effectText}` : "？？？？";
+    gearBook.append(item);
+  }
 }
 
 function addLog(text) {
@@ -667,12 +885,40 @@ function draw(now = performance.now()) {
   ctx.save();
   if (state.shake > 0) ctx.translate((Math.random() - 0.5) * state.shake, (Math.random() - 0.5) * state.shake);
   drawMap(now);
+  drawThreats(now);
   if (state.stairs) drawStairs(state.stairs, now);
   for (const item of state.items) drawItem(item, now);
   for (const enemy of state.enemies) drawEnemy(enemy, now);
   drawHero(now);
   drawEffects();
   ctx.restore();
+}
+
+function drawThreats(now) {
+  const pulse = 0.13 + Math.sin(now / 170) * 0.035;
+  const normalThreats = new Set();
+  for (const enemy of state.enemies) {
+    if (enemy.intent) {
+      for (const tile of enemy.intent.tiles) {
+        ctx.fillStyle = `rgba(239, 107, 87, ${0.32 + Math.sin(now / 130) * 0.08})`;
+        ctx.fillRect(tile.x * TILE + 3, tile.y * TILE + 3, TILE - 6, TILE - 6);
+        ctx.strokeStyle = "#ef6b57";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(tile.x * TILE + 5, tile.y * TILE + 5, TILE - 10, TILE - 10);
+      }
+      continue;
+    }
+    for (const dir of Object.values(DIRS)) {
+      const x = enemy.x + dir.x;
+      const y = enemy.y + dir.y;
+      if (inBounds(x, y)) normalThreats.add(keyAt(x, y));
+    }
+  }
+  ctx.fillStyle = `rgba(216, 144, 75, ${pulse})`;
+  for (const key of normalThreats) {
+    const [x, y] = key.split(",").map(Number);
+    ctx.fillRect(x * TILE + 8, y * TILE + 8, TILE - 16, TILE - 16);
+  }
 }
 
 function drawMap(now) {
@@ -737,6 +983,7 @@ function drawHero(now) {
 
 function drawEnemy(enemy, now) {
   const base = enemyTypes[enemy.type];
+  const img = enemySprites[enemy.type];
   const pos = actorPixel(enemy);
   const wiggle = Math.sin(now / 190 + enemy.x + enemy.y) * 1.6;
   const px = pos.x;
@@ -745,19 +992,19 @@ function drawEnemy(enemy, now) {
   ctx.beginPath();
   ctx.ellipse(px + 30, py + 47, 17, 6, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = enemy.hitFlash > 0 ? "#fff6dc" : base.color;
-  ctx.fillRect(px + 15, py + 14, 30, 28);
-  ctx.fillStyle = "#171611";
-  ctx.fillRect(px + 22, py + 21, 5, 5);
-  ctx.fillRect(px + 34, py + 21, 5, 5);
+  if (img?.complete && img.naturalWidth) {
+    ctx.globalAlpha = enemy.hitFlash > 0 ? 0.55 : 1;
+    const size = enemy.type === "boss" ? 58 : 52;
+    ctx.drawImage(img, px + (TILE - size) / 2, py + 2, size, size);
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.fillStyle = enemy.hitFlash > 0 ? "#fff6dc" : base.color;
+    ctx.fillRect(px + 15, py + 14, 30, 28);
+  }
   ctx.fillStyle = "#100f0c";
   ctx.fillRect(px + 12, py + 8, 36, 5);
   ctx.fillStyle = "#ef6b57";
   ctx.fillRect(px + 13, py + 9, Math.max(0, 34 * (enemy.hp / enemy.maxHp)), 3);
-  ctx.fillStyle = "#fff6dc";
-  ctx.font = "bold 10px system-ui";
-  ctx.textAlign = "center";
-  ctx.fillText(base.mark, px + 30, py + 35);
 }
 
 function drawStairs(stairs, now) {
@@ -877,6 +1124,14 @@ startButton.addEventListener("click", () => {
   gameStarted = true;
   titlePanel.hidden = true;
   playSfx("stairs");
+});
+recordsButton.addEventListener("click", () => {
+  renderRecords();
+  recordsPanel.hidden = false;
+  playSfx("pickup");
+});
+recordsCloseButton.addEventListener("click", () => {
+  recordsPanel.hidden = true;
 });
 muteButton.addEventListener("click", () => {
   unlockAudio();
