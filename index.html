@@ -14,7 +14,13 @@
           <h1>もふ梟の迷宮狩り</h1>
           <p id="statusText">第1層</p>
         </div>
-        <button id="resetButton" class="icon-button" type="button" aria-label="リスタート" title="リスタート">↻</button>
+        <div class="topbar-actions">
+          <div class="audio-controls">
+            <button id="muteButton" class="icon-button" type="button" aria-label="音を消す" title="音を消す">♪</button>
+            <input id="volumeSlider" type="range" min="0" max="100" value="55" aria-label="音量" />
+          </div>
+          <button id="resetButton" class="icon-button" type="button" aria-label="リスタート" title="リスタート">↻</button>
+        </div>
       </header>
 
       <section class="stats" aria-label="ステータス">

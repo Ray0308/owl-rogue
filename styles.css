@@ -134,7 +134,41 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   min-height: 50px;
+}
+
+.topbar-actions,
+.audio-controls {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.audio-controls {
+  height: 44px;
+  padding-left: 7px;
+  border: 1px solid rgba(108, 101, 79, 0.75);
+  border-radius: 8px;
+  background: rgba(43, 42, 37, 0.9);
+}
+
+.audio-controls .icon-button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  background: transparent;
+  font-size: 20px;
+}
+
+.audio-controls input {
+  width: 62px;
+  margin: 0 8px 0 0;
+  accent-color: var(--gold);
+}
+
+.audio-controls.is-muted input {
+  opacity: 0.42;
 }
 
 h1 {
@@ -302,6 +336,12 @@ canvas {
 
 .log li:first-child {
   color: var(--text);
+}
+
+@media (max-width: 390px) {
+  .audio-controls input {
+    width: 48px;
+  }
 }
 
 @media (max-height: 700px) {

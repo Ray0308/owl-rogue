@@ -16,6 +16,9 @@ const gameOverFloor = document.querySelector("#gameOverFloor");
 const gameOverLoot = document.querySelector("#gameOverLoot");
 const gameOverLevel = document.querySelector("#gameOverLevel");
 const gameOverRetry = document.querySelector("#gameOverRetry");
+const muteButton = document.querySelector("#muteButton");
+const volumeSlider = document.querySelector("#volumeSlider");
+const audioControls = document.querySelector(".audio-controls");
 
 const W = 9;
 const H = 12;
@@ -51,6 +54,123 @@ const gearDrops = [
 let state;
 let lastFrame = performance.now();
 let frameHandle = 0;
+
+const audio = {
+  context: null,
+  master: null,
+  music: null,
+  sfx: null,
+  timer: 0,
+  step: 0,
+  muted: localStorage.getItem("owlRogueMuted") === "true",
+  volume: Number(localStorage.getItem("owlRogueVolume") ?? 55) / 100,
+};
+
+const musicNotes = [
+  220, 0, 261.63, 0, 329.63, 0, 261.63, 0,
+  196, 0, 246.94, 0, 293.66, 0, 246.94, 0,
+  174.61, 0, 220, 0, 261.63, 0, 220, 0,
+  196, 0, 246.94, 293.66, 329.63, 0, 246.94, 0,
+];
+
+function unlockAudio() {
+  if (!audio.context) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    audio.context = new AudioContext();
+    audio.master = audio.context.createGain();
+    audio.music = audio.context.createGain();
+    audio.sfx = audio.context.createGain();
+    audio.music.gain.value = 0.22;
+    audio.sfx.gain.value = 0.72;
+    audio.music.connect(audio.master);
+    audio.sfx.connect(audio.master);
+    audio.master.connect(audio.context.destination);
+    updateAudioLevel();
+    startMusic();
+  }
+  if (audio.context.state === "suspended") audio.context.resume();
+}
+
+function updateAudioLevel() {
+  if (audio.master) audio.master.gain.setTargetAtTime(audio.muted ? 0 : audio.volume, audio.context.currentTime, 0.025);
+  volumeSlider.value = Math.round(audio.volume * 100);
+  muteButton.textContent = audio.muted ? "×" : "♪";
+  muteButton.setAttribute("aria-label", audio.muted ? "音を出す" : "音を消す");
+  muteButton.title = audio.muted ? "音を出す" : "音を消す";
+  audioControls.classList.toggle("is-muted", audio.muted);
+}
+
+function tone(frequency, duration, options = {}) {
+  if (!audio.context || audio.muted) return;
+  const now = audio.context.currentTime + (options.delay || 0);
+  const oscillator = audio.context.createOscillator();
+  const gain = audio.context.createGain();
+  oscillator.type = options.type || "square";
+  oscillator.frequency.setValueAtTime(frequency, now);
+  if (options.slide) oscillator.frequency.exponentialRampToValueAtTime(Math.max(30, options.slide), now + duration);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(options.gain || 0.12, now + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  oscillator.connect(gain);
+  gain.connect(options.bus === "music" ? audio.music : audio.sfx);
+  oscillator.start(now);
+  oscillator.stop(now + duration + 0.02);
+}
+
+function playSfx(name) {
+  if (!audio.context) return;
+  const sounds = {
+    step: () => tone(110, 0.045, { type: "triangle", gain: 0.055, slide: 82 }),
+    blocked: () => tone(75, 0.08, { type: "square", gain: 0.08, slide: 58 }),
+    attack: () => tone(420, 0.09, { type: "sawtooth", gain: 0.14, slide: 130 }),
+    skill: () => {
+      tone(520, 0.13, { type: "triangle", gain: 0.12, slide: 880 });
+      tone(780, 0.1, { type: "sine", gain: 0.08, delay: 0.06 });
+    },
+    hurt: () => tone(145, 0.18, { type: "sawtooth", gain: 0.16, slide: 62 }),
+    defeat: () => {
+      tone(180, 0.08, { gain: 0.12 });
+      tone(260, 0.13, { gain: 0.12, delay: 0.07 });
+    },
+    heal: () => {
+      tone(392, 0.12, { type: "sine", gain: 0.11 });
+      tone(523.25, 0.18, { type: "sine", gain: 0.1, delay: 0.1 });
+    },
+    pickup: () => {
+      tone(660, 0.07, { type: "square", gain: 0.09 });
+      tone(880, 0.12, { type: "square", gain: 0.08, delay: 0.06 });
+    },
+    chest: () => {
+      tone(329.63, 0.1, { type: "triangle", gain: 0.1 });
+      tone(493.88, 0.12, { type: "triangle", gain: 0.1, delay: 0.08 });
+      tone(659.25, 0.2, { type: "triangle", gain: 0.1, delay: 0.16 });
+    },
+    stairs: () => {
+      [261.63, 329.63, 392, 523.25].forEach((note, index) => tone(note, 0.18, { type: "sine", gain: 0.085, delay: index * 0.09 }));
+    },
+    level: () => {
+      [392, 493.88, 587.33, 783.99].forEach((note, index) => tone(note, 0.2, { type: "triangle", gain: 0.1, delay: index * 0.1 }));
+    },
+    gameover: () => {
+      [293.66, 246.94, 196, 146.83].forEach((note, index) => tone(note, 0.32, { type: "triangle", gain: 0.1, delay: index * 0.2 }));
+    },
+  };
+  sounds[name]?.();
+}
+
+function startMusic() {
+  if (audio.timer) return;
+  audio.timer = window.setInterval(() => {
+    if (!audio.context || document.hidden || state?.ended) return;
+    const note = musicNotes[audio.step % musicNotes.length];
+    if (note) {
+      tone(note, 0.34, { type: "triangle", gain: 0.055, bus: "music" });
+      if (audio.step % 8 === 0) tone(note / 2, 0.58, { type: "sine", gain: 0.045, bus: "music" });
+    }
+    audio.step += 1;
+  }, 185);
+}
 
 function newGame() {
   state = {
@@ -181,6 +301,7 @@ function isBlocked(x, y, ignoreEnemy = false) {
 }
 
 function playerAction(dirName) {
+  unlockAudio();
   if (state.ended || state.busyUntil > performance.now()) return;
   const dir = DIRS[dirName];
   state.player.face = dir.face;
@@ -189,6 +310,7 @@ function playerAction(dirName) {
   const target = enemyAt(nx, ny);
 
   if (target) {
+    playSfx("attack");
     bumpActor(state.player, dir.x, dir.y, 170);
     hitEnemy(target, playerAttack(), dir.x, dir.y);
     lockInput(210);
@@ -197,6 +319,7 @@ function playerAction(dirName) {
   }
 
   if (isBlocked(nx, ny, true)) {
+    playSfx("blocked");
     bumpActor(state.player, dir.x, dir.y, 120);
     addEffect("ring", nx, ny, "#c9bd91");
     addLog("そこには進めない。");
@@ -206,6 +329,7 @@ function playerAction(dirName) {
   }
 
   moveActor(state.player, nx, ny);
+  playSfx("step");
   state.player.pop = 1;
   addEffect("dust", state.player.x, state.player.y, "#f3c64b");
   pickUp();
@@ -215,6 +339,7 @@ function playerAction(dirName) {
 }
 
 function waitTurn() {
+  unlockAudio();
   if (state.ended || state.busyUntil > performance.now()) return;
   state.player.hp = Math.min(playerMaxHp(), state.player.hp + 1);
   addLog("息を整えた。");
@@ -224,6 +349,7 @@ function waitTurn() {
 }
 
 function useSkill() {
+  unlockAudio();
   if (state.ended || state.busyUntil > performance.now()) return;
   if (state.skillCooldown > 0) {
     addLog("羽根斬りはまだ使えない。");
@@ -231,6 +357,7 @@ function useSkill() {
     return;
   }
   const dir = DIRS[state.player.face] || DIRS.down;
+  playSfx("skill");
   for (let range = 1; range <= 3; range += 1) {
     const x = state.player.x + dir.x * range;
     const y = state.player.y + dir.y * range;
@@ -252,6 +379,7 @@ function useSkill() {
 }
 
 function usePotion() {
+  unlockAudio();
   if (state.ended || state.busyUntil > performance.now()) return;
   if (state.potions <= 0) {
     addLog("薬草がない。");
@@ -259,6 +387,7 @@ function usePotion() {
     return;
   }
   state.potions -= 1;
+  playSfx("heal");
   state.player.hp = Math.min(playerMaxHp(), state.player.hp + 8);
   addEffect("text", state.player.x, state.player.y, "#67b06b", "+8");
   addEffect("ring", state.player.x, state.player.y, "#67b06b");
@@ -293,6 +422,7 @@ function hitEnemy(enemy, damage, dx = 0, dy = 0) {
   const name = enemyTypes[enemy.type].label;
 
   if (enemy.hp <= 0) {
+    playSfx("defeat");
     addLog(`${name}を倒した。`);
     gainExp(enemyTypes[enemy.type].exp + Math.floor(state.floor / 2));
     maybeDrop(enemy.x, enemy.y);
@@ -316,6 +446,7 @@ function gainExp(amount) {
     state.player.hp = playerMaxHp();
     addEffect("burst", state.player.x, state.player.y, "#75a8d8");
     addLog(`レベル${state.player.level}になった。`);
+    playSfx("level");
   }
 }
 
@@ -357,6 +488,7 @@ function pickUp() {
   state.items = state.items.filter((next) => next !== item);
 
   if (item.kind === "chest") {
+    playSfx("chest");
     addLog("宝箱を開けた。");
     Math.random() < 0.7 ? dropGear(item.x, item.y) : state.items.push({ kind: "potion", x: item.x, y: item.y, name: "薬草", color: "#67b06b", born: performance.now() });
     addEffect("burst", item.x, item.y, "#f3c64b");
@@ -364,11 +496,14 @@ function pickUp() {
   }
 
   if (item.kind === "potion") {
+    playSfx("pickup");
     state.potions += 1;
     addLog("薬草を拾った。");
   } else if (item.kind === "gear") {
+    playSfx("pickup");
     equipGear(item);
   } else {
+    playSfx("pickup");
     state.loot.push(item.name);
     addLog(`${item.name}を拾った。`);
   }
@@ -389,12 +524,14 @@ function spawnStairs() {
   state.stairs = pos;
   addEffect("burst", pos.x, pos.y, "#75a8d8");
   addLog("奥へ続く階段が現れた。");
+  playSfx("stairs");
 }
 
 function checkStairs() {
   if (!state.stairs) return;
   if (state.player.x !== state.stairs.x || state.player.y !== state.stairs.y) return;
   state.floor += 1;
+  playSfx("stairs");
   state.player.hp = Math.min(playerMaxHp(), state.player.hp + 4);
   state.skillCooldown = Math.max(0, state.skillCooldown - 2);
   buildFloor();
@@ -426,6 +563,7 @@ function enemyAct(enemy) {
   const base = enemyTypes[enemy.type];
 
   if (distance === 1) {
+    playSfx("hurt");
     state.player.hp -= enemy.damage;
     state.player.hitFlash = 260;
     state.shake = Math.max(state.shake, 4);
@@ -438,6 +576,7 @@ function enemyAct(enemy) {
       state.ended = true;
       addLog("力尽きた。");
       statusText.textContent = "探索失敗";
+      playSfx("gameover");
       showGameOver();
     }
     return;
@@ -718,10 +857,33 @@ document.querySelectorAll("[data-dir]").forEach((button) => {
   button.addEventListener("click", () => playerAction(button.dataset.dir));
 });
 document.querySelector("#waitButton").addEventListener("click", waitTurn);
-document.querySelector("#resetButton").addEventListener("click", newGame);
-gameOverRetry.addEventListener("click", newGame);
+document.querySelector("#resetButton").addEventListener("click", () => {
+  unlockAudio();
+  newGame();
+  playSfx("stairs");
+});
+gameOverRetry.addEventListener("click", () => {
+  unlockAudio();
+  newGame();
+  playSfx("stairs");
+});
 skillButton.addEventListener("click", useSkill);
 potionButton.addEventListener("click", usePotion);
+muteButton.addEventListener("click", () => {
+  unlockAudio();
+  audio.muted = !audio.muted;
+  localStorage.setItem("owlRogueMuted", audio.muted);
+  updateAudioLevel();
+  if (!audio.muted) playSfx("pickup");
+});
+volumeSlider.addEventListener("input", () => {
+  unlockAudio();
+  audio.volume = Number(volumeSlider.value) / 100;
+  if (audio.volume > 0) audio.muted = false;
+  localStorage.setItem("owlRogueVolume", audio.volume * 100);
+  localStorage.setItem("owlRogueMuted", audio.muted);
+  updateAudioLevel();
+});
 
 window.addEventListener("keydown", (event) => {
   const map = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", w: "up", s: "down", a: "left", d: "right" };
@@ -738,4 +900,5 @@ window.addEventListener("keydown", (event) => {
 });
 
 newGame();
+updateAudioLevel();
 if (!frameHandle) requestAnimationFrame(frame);
