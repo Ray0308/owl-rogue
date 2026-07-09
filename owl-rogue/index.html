@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#20201c" />
+    <title>もふ梟の迷宮狩り</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div>
+          <h1>もふ梟の迷宮狩り</h1>
+          <p id="statusText">第1層</p>
+        </div>
+        <button id="resetButton" class="icon-button" type="button" aria-label="リスタート" title="リスタート">↻</button>
+      </header>
+
+      <section class="stats" aria-label="ステータス">
+        <div>
+          <span>HP</span>
+          <strong id="hpText">18/18</strong>
+        </div>
+        <div>
+          <span>LV</span>
+          <strong id="levelText">1</strong>
+        </div>
+        <div>
+          <span>攻撃</span>
+          <strong id="attackText">3</strong>
+        </div>
+        <div>
+          <span>EXP</span>
+          <strong id="expText">0/6</strong>
+        </div>
+      </section>
+
+      <section class="gearbar" aria-label="装備">
+        <span id="gearText">装備なし</span>
+        <span id="lootText">戦利品 0</span>
+      </section>
+
+      <section class="stage" aria-label="ゲーム画面">
+        <canvas id="gameCanvas" width="540" height="720"></canvas>
+      </section>
+
+      <section class="skillbar" aria-label="スキル">
+        <button id="skillButton" class="skill-button" type="button">羽根斬り</button>
+        <button id="potionButton" class="skill-button" type="button">薬草</button>
+      </section>
+
+      <section class="controls" aria-label="操作">
+        <button class="move-button ghost" type="button" disabled></button>
+        <button class="move-button" type="button" data-dir="up" aria-label="上へ移動">▲</button>
+        <button class="move-button ghost" type="button" disabled></button>
+        <button class="move-button" type="button" data-dir="left" aria-label="左へ移動">◀</button>
+        <button id="waitButton" class="move-button wait" type="button" aria-label="待機">●</button>
+        <button class="move-button" type="button" data-dir="right" aria-label="右へ移動">▶</button>
+        <button class="move-button ghost" type="button" disabled></button>
+        <button class="move-button" type="button" data-dir="down" aria-label="下へ移動">▼</button>
+        <button class="move-button ghost" type="button" disabled></button>
+      </section>
+
+      <ol id="logList" class="log" aria-label="ログ"></ol>
+
+      <section id="gameOverPanel" class="game-over" aria-live="polite" hidden>
+        <div class="game-over__panel">
+          <h2>探索失敗</h2>
+          <p id="gameOverText">迷宮の奥で力尽きた。</p>
+          <dl>
+            <div>
+              <dt>到達</dt>
+              <dd id="gameOverFloor">第1層</dd>
+            </div>
+            <div>
+              <dt>戦利品</dt>
+              <dd id="gameOverLoot">0</dd>
+            </div>
+            <div>
+              <dt>レベル</dt>
+              <dd id="gameOverLevel">1</dd>
+            </div>
+          </dl>
+          <button id="gameOverRetry" type="button">もう一度潜る</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="./game.js"></script>
+  </body>
+</html>
